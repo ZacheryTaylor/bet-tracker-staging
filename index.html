@@ -2,52 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Bet Tracker</title>
+  <meta name="description" content="Personal sports bet tracker with live ESPN stat refresh." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f6f7fb" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b0f17" media="(prefers-color-scheme: dark)" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f46e5'/%3E%3Cpath d='M8 21l5-6 4 3 7-9' stroke='white' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E" />
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem("bt-theme");
+        if (t === "light" || t === "dark") document.documentElement.dataset.theme = t;
+      } catch (_) {}
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <a class="skip-link" href="#betList">Skip to bets</a>
+  <div class="bg-glow" aria-hidden="true"></div>
   <div class="app">
     <header class="top">
-      <div>
-        <h1>Bet Tracker</h1>
-        <p class="lede">Parlays are joint bets. Each leg has its own bar. Refresh pulls ESPN stats.</p>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22"><path d="M4 16l5-6 4 3 7-8" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <div class="title-row">
+            <h1>Bet Tracker</h1>
+            <span class="env-badge" id="envBadge" hidden>Staging preview</span>
+          </div>
+          <p class="lede">Parlays are joint bets. Each leg has its own bar. Refresh pulls ESPN stats.</p>
+          <p class="sync-line" id="syncLine" aria-live="polite"></p>
+        </div>
       </div>
       <div class="top-actions">
-        <button type="button" id="refreshBtn">Refresh ESPN</button>
-        <button type="button" class="secondary" id="reportBtn">Chart Report</button>
+        <button type="button" class="btn btn-ghost btn-icon" id="themeBtn" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <svg class="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2.5v2.2M12 19.3v2.2M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M2.5 12h2.2M19.3 12h2.2M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        </button>
+        <button type="button" class="btn btn-secondary" id="reportBtn">
+          <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Chart Report
+        </button>
+        <button type="button" class="btn btn-primary" id="refreshBtn">
+          <svg class="refresh-icon" viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>Refresh ESPN</span>
+        </button>
       </div>
     </header>
-    <section class="filters">
-      <label>User<select id="filterUser"></select></label>
-      <label>Sport<select id="filterSport"></select></label>
-      <label>Type<select id="filterType">
-        <option value="all">All</option>
-        <option value="player-prop">Player props</option>
-        <option value="record">Team records</option>
-        <option value="parlay">Parlays</option>
-        <option value="award">Awards</option>
-        <option value="future">Futures</option>
-      </select></label>
-      <label>Timeline<select id="filterTimeline">
-        <option value="all">All</option>
-        <option value="single">Single game</option>
-        <option value="season">Season long</option>
-      </select></label>
-      <label>Status<select id="filterStatus">
-        <option value="all">All</option>
-        <option value="open">Open</option>
-        <option value="hit">Hit</option>
-        <option value="miss">Miss</option>
-      </select></label>
+
+    <section class="summary" id="summary" aria-label="Summary for current filters">
+      <div class="stat-card skeleton"></div><div class="stat-card skeleton"></div><div class="stat-card skeleton"></div><div class="stat-card skeleton"></div>
     </section>
-    <section class="report" id="reportPanel" hidden aria-live="polite">
+
+    <section class="panel chart-panel" id="chartPanel" aria-labelledby="exposureTitle">
+      <div class="panel-head">
+        <div>
+          <p class="kicker">Exposure</p>
+          <h2 id="exposureTitle">Stake vs. potential payout</h2>
+        </div>
+        <div class="seg" role="group" aria-label="Group chart by">
+          <button type="button" class="seg-btn is-active" data-group="kind" aria-pressed="true">By type</button>
+          <button type="button" class="seg-btn" data-group="user" aria-pressed="false">By user</button>
+        </div>
+      </div>
+      <div class="chart-legend" aria-hidden="true"><span><i class="sw sw-stake"></i>Staked</span><span><i class="sw sw-payout"></i>Potential payout</span></div>
+      <div class="chart-wrap"><canvas id="exposureChart" role="img" aria-label="Bar chart of total stake and potential payout"></canvas></div>
+      <p class="meta chart-fallback" id="chartFallback" hidden>Chart unavailable (chart library failed to load).</p>
+    </section>
+
+    <section class="panel filters-panel" aria-label="Filters">
+      <div class="search">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><circle cx="11" cy="11" r="7" fill="none" stroke="currentColor" stroke-width="2"/><path d="M20 20l-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <label class="sr-only" for="searchInput">Search bets</label>
+        <input id="searchInput" type="search" placeholder="Search players, teams, bets…" autocomplete="off" />
+      </div>
+      <div class="filters">
+        <label>User<select id="filterUser"></select></label>
+        <label>Sport<select id="filterSport"></select></label>
+        <label>Type<select id="filterType">
+          <option value="all">All</option>
+          <option value="player-prop">Player props</option>
+          <option value="record">Team records</option>
+          <option value="parlay">Parlays</option>
+          <option value="award">Awards</option>
+          <option value="future">Futures</option>
+        </select></label>
+        <label>Timeline<select id="filterTimeline">
+          <option value="all">All</option>
+          <option value="single">Single game</option>
+          <option value="season">Season long</option>
+        </select></label>
+        <label>Status<select id="filterStatus">
+          <option value="all">All</option>
+          <option value="open">Open</option>
+          <option value="hit">Hit</option>
+          <option value="miss">Miss</option>
+        </select></label>
+        <label>Sort<select id="sortBy">
+          <option value="default">Default order</option>
+          <option value="progress">Progress (high → low)</option>
+          <option value="payout">Payout (high → low)</option>
+          <option value="stake">Stake (high → low)</option>
+          <option value="name">Name (A → Z)</option>
+        </select></label>
+      </div>
+    </section>
+
+    <section class="panel report" id="reportPanel" hidden aria-live="polite">
       <div class="report-head">
         <div>
           <p class="report-kicker">Filtered chart report</p>
           <h2 id="reportTitle">Bet progress</h2>
         </div>
-        <button type="button" class="icon-button" id="closeReportBtn" aria-label="Close chart report">×</button>
+        <button type="button" class="btn btn-ghost btn-icon icon-button" id="closeReportBtn" aria-label="Close chart report">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
       </div>
       <div id="reportError" class="report-error" hidden></div>
       <div class="report-stats" id="reportStats"></div>
@@ -58,11 +133,22 @@
       </div>
       <div class="report-chart" id="reportChart"></div>
     </section>
-    <p class="status" id="statusLine">Loading bets…</p>
-    <div id="betList" class="list"></div>
+
+    <div class="results-bar">
+      <p class="status" id="statusLine" role="status" aria-live="polite">Loading bets…</p>
+      <button type="button" class="link-btn" id="resetBtn" hidden>Reset filters</button>
+    </div>
+    <div id="betList" class="list" aria-busy="true">
+      <div class="bet-card skeleton"></div><div class="bet-card skeleton"></div><div class="bet-card skeleton"></div><div class="bet-card skeleton"></div>
+    </div>
+
+    <footer class="foot">
+      <p>Data: <code>data/bets.json</code> · Stats via ESPN · Browser refresh is in-memory only; the hourly GitHub Action saves synced stats.</p>
+    </footer>
   </div>
-  <script src="scripts/espn-player.js"></script>
-  <script src="scripts/team-record.js"></script>
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" async onload="window.BT_onChart && window.BT_onChart()" onerror="window.BT_chartFailed = true; window.BT_onChart && window.BT_onChart()"></script>
+  <script src="scripts/espn-player.js" defer></script>
+  <script src="scripts/team-record.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
